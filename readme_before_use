@@ -1,0 +1,12 @@
+구글 인가 코드 받기 (URL) :
+https://accounts.google.com/o/oauth2/auth?
+client_id=768424863727-grm75230upjmldp7ckhvhk37ue6ef5ce.apps.googleusercontent.com&
+redirect_uri=http://127.0.0.1:8000/auth/social/login/&
+response_type=code&
+scope=email%20profile
+
+카카오 인가 코드 받기 (URL) :
+https://kauth.kakao.com/oauth/authorize?
+client_id=3daa5a435c93adb1c21d79c24ed061c8&
+redirect_uri=http://127.0.0.1:8000/auth/social/login/&
+response_type=code
