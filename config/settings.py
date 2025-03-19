@@ -11,9 +11,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
-from decouple import config
 from datetime import timedelta
 import os
+import cx_Oracle
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -107,14 +108,20 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
+
+cx_Oracle.init_oracle_client()
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.oracle',
-        'NAME': config('NAME'),  # 서비스 이름 또는 SID
+        'NAME': (
+            '(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)'
+            f'(HOST={config("HOST")})(PORT={config("PORT")}))'
+            f'(CONNECT_DATA=(SERVICE_NAME={config("NAME").lower()})))'
+        ),
         'USER': config('USER'),
         'PASSWORD': config('PASSWORD'),
-        'HOST': config('HOST'),
-        'PORT': config('PORT'),
     }
 }
 
