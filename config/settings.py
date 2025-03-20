@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-c##rjie=j1)4(@54lk+0+bcf*-sclm($)b@98q=d81!0q(rqlo
 # SECURITY WARNING: don't run with debug turned on in production!
 #개발시는 아래 두 줄 주석 해제
 DEBUG = True
-ALLOWED_HOSTS=[]
+ALLOWED_HOSTS = ['192.168.0.65', 'localhost', '127.0.0.1']
 #배포시는 아래 두줄 주석 해제(배포용으로 변경 후에는 더 이상 개발서버(8000)에서는 서비스가 불가)
 #DEBUG = False
 #웹 서버릐 주소 지정
