@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth + JWT Test</title>
+</head>
+<body>
+    <h2>Google OAuth Login Test</h2>
+    <button onclick="loginWithGoogle()">Login with Google</button>
+
+    <h3>Authorization Code:</h3>
+    <pre id="code-display">No code received yet</pre>
+
+    <h3>Server Response:</h3>
+    <pre id="response"></pre>
+
+    <script>
+        // ✅ 백엔드 Google OAuth 처리 엔드포인트 (Django DRF)
+        const BACKEND_URL = "https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/google/";
+
+        // ✅ Google OAuth 요청 URL 생성
+        const GOOGLE_CLIENT_ID = "768424863727-grm75230upjmldp7ckhvhk37ue6ef5ce.apps.googleusercontent.com";
+        const GOOGLE_REDIRECT_URI = "https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/google/";
+
+        function loginWithGoogle() {
+            const GOOGLE_AUTH_URL = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_REDIRECT_URI}&scope=email%20profile&access_type=offline`;
+
+            // ✅ Google 로그인 페이지로 이동
+            window.location.href = GOOGLE_AUTH_URL;
+        }
+
+        // ✅ URL에서 `code` 추출 후 백엔드로 전송
+        async function sendCodeToBackend(code) {
+            try {
+                console.log("Received Authorization Code:", code);
+                document.getElementById("code-display").textContent = `Code: ${code}`;
+
+                const response = await fetch(BACKEND_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        code: code
+                    }),
+                });
+
+                const data = await response.json();
+                console.log("Server Response:", data);
+
+                // ✅ JWT 토큰 저장
+                if (data.access_token) {
+                    localStorage.setItem("access_token", data.access_token);
+                    localStorage.setItem("refresh_token", data.refresh_token);
+                }
+
+                // ✅ 화면에 응답 표시
+                document.getElementById("response").textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error("Error during OAuth process:", error);
+            }
+        }
+
+        // ✅ 로그인 후 URL에서 `code` 추출하여 백엔드로 전달
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get("code");
+        if (code) {
+            sendCodeToBackend(code);
+        }
+    </script>
+</body>
+</html>

@@ -1,3 +1,5 @@
+from datetime import timedelta
+from django.utils import timezone
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
@@ -64,7 +66,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="가입일")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="업데이트일")  # 없으면 가입일
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', verbose_name="상태")
-
     # Django Admin을 위한 필드 추가
     is_active = models.BooleanField(default=True, verbose_name="활성 상태")  # 필수
     is_staff = models.BooleanField(default=False, verbose_name="스태프 권한")  # 필수
@@ -95,3 +96,12 @@ class SocialAccount(models.Model):
 
     def __str__(self):
         return f"{self.member_id} - {self.provider}"
+
+class EmailVerification(models.Model):
+    email = models.EmailField()
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=10)
+
