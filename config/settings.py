@@ -222,13 +222,6 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
-SOCIAL_AUTH_KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID", "카카오 REST API 키")
-SOCIAL_AUTH_KAKAO_REDIRECT_URI = "http://127.0.0.1:8000/auth/social/login/"
-
-SOCIAL_AUTH_GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "구글 Client Id")
-SOCIAL_AUTH_GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "구글 Client Secret")
-SOCIAL_AUTH_GOOGLE_REDIRECT_URI = "http://127.0.0.1:8000/auth/social/login/google/"
-
 # allauth 설정
 ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_USERNAME_REQUIRED = False  # username 필드 사용하지 않도록 설정
@@ -244,6 +237,4 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# 이메일 인증 코드 비동기 처리
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
 
