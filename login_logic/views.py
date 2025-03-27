@@ -1,22 +1,19 @@
-from django.utils.http import urlsafe_base64_decode
-from django.contrib.auth.tokens import default_token_generator
-from rest_framework.decorators import api_view
 from django.contrib.auth import get_user_model, authenticate
-from django.conf import settings
-from django.contrib.auth.forms import PasswordResetForm
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 import requests
-from decouple import config
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from .models import SocialAccount, EmailVerification
+from .models import SocialAccount
 import random
 import string
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.core.mail import EmailMultiAlternatives
+from rest_framework import status
+from django.conf import settings
+from django.template.loader import render_to_string
 
-from .utils import send_verification_code, generate_auth_code
 
 User = get_user_model()
 
@@ -38,24 +35,24 @@ class RegisterView(APIView):
             if user.is_active:
                 return Response({"error": "이미 존재하는 이메일입니다."}, status=400)
             else:
-                # ✅ 이미 비활성화된 유저 → 인증 코드만 다시 전송
-                code = generate_auth_code()
-                EmailVerification.objects.filter(email=email).delete()
-                EmailVerification.objects.create(email=email, code=code)
-                send_verification_code(email, code)
-                return Response({"message": "이메일 인증 코드가 다시 전송되었습니다."}, status=200)
+                return Response({"message": "이미 등록된 이메일입니다. 이메일 인증을 먼저 진행해주세요."}, status=200)
+
         except User.DoesNotExist:
-            # ✅ 신규 유저 생성
+            # 신규 유저 생성 (is_active=False로 비활성 상태)
             user = User.objects.create_user(
-                email=email, password=password, name=name,
-                nickname=nickname, contact=contact, gender=gender, birth=birth, is_active=False
+                email=email,
+                password=password,
+                name=name,
+                nickname=nickname,
+                contact=contact,
+                gender=gender,
+                birth=birth,
+                is_active=False  # 이메일 인증 전까진 비활성
             )
 
-            code = generate_auth_code()
-            EmailVerification.objects.create(email=email, code=code)
-            send_verification_code(email, code)
+            # 인증 코드는 이제 Java에서 생성 및 저장
+            return Response({"message": "회원가입 성공! 이메일 인증을 완료해주세요."}, status=201)
 
-            return Response({"message": "회원가입 성공! 이메일로 인증 코드를 보냈습니다."}, status=201)
 
 
 
@@ -153,6 +150,7 @@ class GoogleLoginView(APIView):
 
     def post(self, request):
         code = request.data.get("code")
+        print(f"👉 받은 인가 코드: {code}")
         if not code:
             return Response({"error": "인가 코드가 없습니다."}, status=400)
 
@@ -273,62 +271,29 @@ class KakaoLoginView(APIView):
             "refresh": str(refresh),
         })
 
+class SendAuthEmailFromJavaView(APIView):
+    permission_classes = [AllowAny]
 
-
-class PasswordResetEmailView(APIView):
-    def post(self, request):
-        email = request.data.get('email')
-        if not email:
-            return Response({"error": "이메일이 없습니다."}, status=400)
-
-        form = PasswordResetForm({'email': email})
-        if form.is_valid():
-            form.save(
-                request=request,
-                from_email=config("EMAIL_HOST_USER"),
-                email_template_name='email.html',
-            )
-            return Response({"message": "비밀번호 재설정 이메일을 보냈습니다."})
-        return Response({"error": "유효하지 않은 이메일입니다."}, status=400)
-
-class VerifyEmailCodeView(APIView):
     def post(self, request):
         email = request.data.get("email")
-        code = request.data.get("code")
-
-        try:
-            record = EmailVerification.objects.get(email=email, code=code)
-            if record.is_expired():
-                return Response({"error": "코드가 만료되었습니다."}, status=400)
-        except EmailVerification.DoesNotExist:
-            return Response({"error": "잘못된 인증 코드입니다."}, status=400)
-
-        user = User.objects.get(email=email)
-        user.is_active = True
-        user.save()
-
-        return Response({"message": "이메일 인증 완료! 이제 로그인하세요."})
-
-class VerifySocialEmailCodeView(APIView):
-    def post(self, request):
-        email = request.data.get('email')
-        code = request.data.get('code')
+        code = request.data.get("code")  # ✅ 여기서 먼저 정의되어야 함!
 
         if not email or not code:
-            return Response({"error": "이메일과 코드가 필요합니다."}, status=400)
+            return Response({"error": "이메일과 인증 코드가 모두 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            record = EmailVerification.objects.get(email=email, code=code)
-            if record.is_expired():
-                return Response({"error": "코드가 만료되었습니다."}, status=400)
-        except EmailVerification.DoesNotExist:
-            return Response({"error": "잘못된 인증 코드입니다."}, status=400)
+            html_content = render_to_string("email_template.html", {"code": code})  # ✅ 사용 OK!
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response({"error": "해당 이메일의 사용자를 찾을 수 없습니다."}, status=404)
+            email_message = EmailMultiAlternatives(
+                subject="[VITA] 이메일 인증 코드",
+                body="이메일 인증을 위한 코드입니다.",
+                from_email=settings.EMAIL_HOST_USER,
+                to=[email],
+            )
+            email_message.attach_alternative(html_content, "text/html")
+            email_message.send()
 
-        user.is_active = True
-        user.save()
-        return Response({"message": "이메일 인증 완료! 로그인 가능"})
+            return Response({"message": "이메일 전송 성공!"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": f"이메일 전송 실패: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

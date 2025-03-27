@@ -8,9 +8,7 @@ from .views import (
     RefreshTokenView,
     GoogleLoginView,
     KakaoLoginView,
-    PasswordResetEmailView,
-    VerifyEmailCodeView,
-    VerifySocialEmailCodeView,
+    SendAuthEmailFromJavaView
 
 )
 
@@ -27,7 +25,5 @@ urlpatterns = [
     # path('social/login/', SocialLoginView.as_view(), name='social_login'), # 소셜 로그인
     # path('social/logout/', DisconnectSocialUserView.as_view(), name='social_logout'), # 소셜 로그아웃
     # path('social/user/delete/', DeleteSocialUserView.as_view(), name='delete_social_user'), # 소셜 계정 삭제
-    path('reset/password/', PasswordResetEmailView.as_view(), name='send_reset_email'), # 비밀번호 재설정 이메일 전송
-    path('verify/email/', VerifyEmailCodeView.as_view(), name='verify_email'), # 이메일 로그인 인증 이메일
-    path('verify/social/email/', VerifySocialEmailCodeView.as_view(), name='verify_social_email'), # 소셜 로그인 인증 이메일
+    path('email/send/', SendAuthEmailFromJavaView.as_view(), name='send_auth_email_java'), # smtp
     ]
