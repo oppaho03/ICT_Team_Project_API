@@ -271,6 +271,79 @@ class KakaoLoginView(APIView):
             "refresh": str(refresh),
         })
 
+
+class NaverLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def generate_unique_login_id(self):
+        while True:
+            login_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
+            if not SocialAccount.objects.filter(login_id=login_id).exists():
+                return login_id
+
+    def post(self, request):
+        code = request.data.get("code")
+        state = request.data.get("state")  # 네이버는 state도 함께 전달됨
+
+        if not code or not state:
+            return Response({"error": "인가 코드 또는 state가 없습니다."}, status=400)
+
+        token_data = {
+            "grant_type": "authorization_code",
+            "client_id": settings.NAVER_CLIENT_ID,
+            "client_secret": settings.NAVER_CLIENT_SECRET,
+            "code": code,
+            "state": state,
+        }
+
+        token_res = requests.post("https://nid.naver.com/oauth2.0/token", data=token_data)
+        token_json = token_res.json()
+        access_token = token_json.get("access_token")
+
+        if not access_token:
+            return Response({"error": "Access Token을 가져오지 못했습니다."}, status=400)
+
+        headers = {"Authorization": f"Bearer {access_token}"}
+        user_info_res = requests.get("https://openapi.naver.com/v1/nid/me", headers=headers)
+        user_info_json = user_info_res.json()
+
+        if user_info_json.get("resultcode") != "00":
+            return Response({"error": "사용자 정보를 가져오지 못했습니다."}, status=400)
+
+        naver_account = user_info_json.get("response", {})
+        email = naver_account.get("email")
+        name = naver_account.get("name")
+        provider_id = naver_account.get("id")
+
+        if not email:
+            return Response({"error": "이메일 정보를 가져올 수 없습니다."}, status=400)
+
+        user, created = User.objects.get_or_create(email=email, defaults={"name": name})
+
+        # ✅ 이메일 인증 여부 확인
+        if not user.is_active:
+            return Response({"message": "이메일 인증이 필요합니다."}, status=403)
+
+        refresh = RefreshToken.for_user(user)
+
+        random_login_id = self.generate_unique_login_id()
+        social_account, created = SocialAccount.objects.get_or_create(
+            member_id=user,
+            provider="naver",
+            provider_id=provider_id,
+            defaults={
+                "login_id": random_login_id,
+                "access_token": access_token,
+                "status": "active",
+            },
+        )
+
+        return Response({
+            "email": user.email,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        })
+
 class SendAuthEmailFromJavaView(APIView):
     permission_classes = [AllowAny]
 
