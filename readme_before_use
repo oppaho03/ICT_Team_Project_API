@@ -1,0 +1,87 @@
+# Django DRF + Oracle + Social Login Project
+
+## 🔧 개발 환경
+- Python 3.12.9
+- Django REST Framework
+- Oracle Database (XE 21c)
+- Docker, Docker Compose
+- Ngrok 도메인: `https://indirectly-crack-macaque.ngrok-free.app`
+
+---
+
+## 🚀 실행 방법
+
+### 1. 의존성 설치
+```bash
+pip install -r requirements.txt
+```
+
+### 2. 서버 실행
+```bash
+python manage.py runserver 0.0.0.0:8000
+```
+
+또는 Docker를 사용할 경우:
+```bash
+docker-compose up --build
+```
+
+---
+
+## 🌐 소셜 로그인 인가 코드 요청 URL
+
+### ✅ 구글 (Google)
+```
+https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=768424863727-grm75230upjmldp7ckhvhk37ue6ef5ce.apps.googleusercontent.com&redirect_uri=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/google/&scope=email%20profile&access_type=offline&state=RANDOM_STATE_STRING
+```
+
+### ✅ 카카오 (Kakao)
+```
+https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=3daa5a435c93adb1c21d79c24ed061c8&redirect_uri=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/kakao/&state=RANDOM_STATE_STRING
+```
+
+### ✅ 네이버 (Naver)
+```
+https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=sJPZjO9RDJwL8phJqopC&redirect_uri=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/naver/&state=RANDOM_STATE_STRING
+```
+
+---
+
+## 📫 API 테스트 방법 (Postman)
+
+1. 위 URL 중 하나로 브라우저에서 인가 코드 발급
+2. 발급받은 code를 Django 백엔드로 POST 요청
+```
+POST https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/google/
+Content-Type: application/json
+
+{
+  "code": "발급받은_인가_코드",
+  "state": "RANDOM_STATE_STRING" (네이버)
+}
+```
+
+---
+
+## 🔐 .env 예시 (필요시 요청)
+```env
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/google/
+
+KAKAO_CLIENT_ID=your_kakao_rest_api_key
+KAKAO_REDIRECT_URI=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/kakao/
+
+NAVER_CLIENT_ID=your_naver_client_id
+NAVER_CLIENT_SECRET=your_naver_client_secret
+NAVER_REDIRECT_URI=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/naver/
+
+NGROK_AUTHTOKEN=your_ngrok_authtoken
+```
+
+---
+
+## 📦 기타
+- Oracle 연결 정보는 `models.py` 또는 `settings.py`의 `DATABASES` 설정 참고
+- SMTP를 통한 이메일 인증은 Python 서버에서 전송만 담당
+
