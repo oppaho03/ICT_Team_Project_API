@@ -8,6 +8,7 @@
       font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background-color: #f7f7f7;
       padding: 40px;
+      margin: 0;
     }
 
     .container {
@@ -34,36 +35,51 @@
     }
 
     .code-box {
-      font-size: 32px;
+      font-size: 36px;
       font-weight: bold;
       color: #ffffff;
       background-color: #4CAF50;
       padding: 20px 40px;
       border-radius: 8px;
       display: inline-block;
-      letter-spacing: 5px;
+      letter-spacing: 6px;
+      margin-bottom: 30px;
     }
 
     .footer {
       margin-top: 40px;
       font-size: 13px;
-      color: #aaa;
+      color: #888;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #1e1e1e;
+      }
+      .container {
+        background-color: #2c2c2c;
+        box-shadow: none;
+      }
+      .message, .footer {
+        color: #ddd;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="logo">VITA</div>
+
     <div class="message">
       아래 인증 코드를 입력하여 이메일 인증을 완료해주세요.<br>
-      인증 코드는 5분간 유효합니다.
+      인증 코드는 <b>5분간 유효</b>합니다.
     </div>
 
     <div class="code-box">{{ code }}</div>
 
     <div class="footer">
       본 메일은 발신전용입니다.<br>
-      문의: vita-support@example.com
+      문의: <a href="mailto:vita-support@example.com" style="color:#4CAF50;">vita-support@example.com</a>
     </div>
   </div>
 </body>
