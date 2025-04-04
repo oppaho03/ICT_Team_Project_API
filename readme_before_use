@@ -29,17 +29,17 @@ python manage.py runserver 0.0.0.0:8000
 
 ### ✅ 구글 (Google)
 ```
-https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=768424863727-grm75230upjmldp7ckhvhk37ue6ef5ce.apps.googleusercontent.com&redirect_uri=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/google/&scope=email%20profile&access_type=offline&state=RANDOM_STATE_STRING
+https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=768424863727-grm75230upjmldp7ckhvhk37ue6ef5ce.apps.googleusercontent.com&redirect_uri=https://noted-enjoyed-llama.ngrok-free.app/signin&scope=email%20profile&access_type=offline&state=RANDOM_STATE_STRING
 ```
 
 ### ✅ 카카오 (Kakao)
 ```
-https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=3daa5a435c93adb1c21d79c24ed061c8&redirect_uri=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/kakao/&state=RANDOM_STATE_STRING
+https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=3daa5a435c93adb1c21d79c24ed061c8&redirect_uri=https://noted-enjoyed-llama.ngrok-free.app/signin&state=RANDOM_STATE_STRING
 ```
 
 ### ✅ 네이버 (Naver)
 ```
-https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=sJPZjO9RDJwL8phJqopC&redirect_uri=https://indirectly-crack-macaque.ngrok-free.app/auth/social/login/naver/&state=RANDOM_STATE_STRING
+https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=sJPZjO9RDJwL8phJqopC&redirect_uri=https://noted-enjoyed-llama.ngrok-free.app/signin&state=RANDOM_STATE_STRING
 ```
 
 ---

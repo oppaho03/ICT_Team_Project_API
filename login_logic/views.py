@@ -349,13 +349,13 @@ class SendAuthEmailFromJavaView(APIView):
 
     def post(self, request):
         email = request.data.get("email")
-        code = request.data.get("code")  # ✅ 여기서 먼저 정의되어야 함!
+        code = request.data.get("code")  # 여기서 먼저 정의되어야 함!
 
         if not email or not code:
             return Response({"error": "이메일과 인증 코드가 모두 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            html_content = render_to_string("email_template.html", {"code": code})  # ✅ 사용 OK!
+            html_content = render_to_string("email.html", {"code": code})
 
             email_message = EmailMultiAlternatives(
                 subject="[VITA] 이메일 인증 코드",
