@@ -14,10 +14,17 @@ from rest_framework import status
 from django.conf import settings
 from django.template.loader import render_to_string
 
-
 User = get_user_model()
 
+# 랜덤 ID 생성 유틸 클래스 (소셜 로그인 전용)
+class YourSocialLoginViewBase:
+    def generate_unique_login_id(self):
+        while True:
+            login_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
+            if not SocialAccount.objects.filter(login_id=login_id).exists():
+                return login_id
 
+# 회원가입
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -30,6 +37,9 @@ class RegisterView(APIView):
         gender = request.data.get("gender")
         birth = request.data.get("birth")
 
+        if User.objects.filter(nickname=nickname).exists():
+            return Response({"error": "이미 사용 중인 닉네임입니다."}, status=400)
+
         try:
             user = User.objects.get(email=email)
             if user.is_active:
@@ -38,7 +48,6 @@ class RegisterView(APIView):
                 return Response({"message": "이미 등록된 이메일입니다. 이메일 인증을 먼저 진행해주세요."}, status=200)
 
         except User.DoesNotExist:
-            # 신규 유저 생성 (is_active=False로 비활성 상태)
             user = User.objects.create_user(
                 email=email,
                 password=password,
@@ -47,15 +56,11 @@ class RegisterView(APIView):
                 contact=contact,
                 gender=gender,
                 birth=birth,
-                is_active=False  # 이메일 인증 전까진 비활성
+                is_active=False
             )
-
-            # 인증 코드는 이제 Java에서 생성 및 저장
             return Response({"message": "회원가입 성공! 이메일 인증을 완료해주세요."}, status=201)
 
-
-
-
+# 로그인
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -65,8 +70,11 @@ class LoginView(APIView):
 
         user = authenticate(request, email=email, password=password)
         if user is not None:
+            if not user.is_active:
+                return Response({"error": "이메일 인증이 완료되지 않았습니다."}, status=403)
+
             refresh = RefreshToken.for_user(user)
-            user.token = str(refresh)  # JWT 토큰 저장
+            user.token = str(refresh)
             user.save()
             return Response({
                 "access": str(refresh.access_token),
@@ -74,7 +82,7 @@ class LoginView(APIView):
             })
         return Response({"error": "로그인 실패"}, status=401)
 
-
+# 로그아웃
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -90,6 +98,23 @@ class LogoutView(APIView):
         except Exception:
             return Response({"error": "유효하지 않은 리프레시 토큰입니다."}, status=400)
 
+# 비밀번호 변경
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        current_password = request.data.get("current_password")
+        new_password = request.data.get("new_password")
+
+        if not user.check_password(current_password):
+            return Response({"error": "현재 비밀번호가 일치하지 않습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "비밀번호가 성공적으로 변경되었습니다."}, status=status.HTTP_200_OK)
+
+# 토큰 재발급 (Refresh → Access)
 class RefreshTokenView(APIView):
     permission_classes = [AllowAny]
 
@@ -104,6 +129,7 @@ class RefreshTokenView(APIView):
         except Exception:
             return Response({"error": "유효하지 않은 리프레시 토큰입니다."}, status=401)
 
+# 유저 프로필 조회
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -119,7 +145,7 @@ class UserProfileView(APIView):
             "status": user.status,
         })
 
-
+# 회원 탈퇴
 class DeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -128,29 +154,46 @@ class DeleteUserView(APIView):
         user.delete()
         return Response({"message": "회원 탈퇴 완료!"})
 
+# 소셜 계정 삭제
+class DeleteSocialAccountView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def delete(self, request):
+        provider = request.data.get("provider")
+        user = request.user
+        try:
+            social_account = SocialAccount.objects.get(member_id=user, provider=provider)
+            social_account.delete()
+            return Response({"message": f"{provider} 계정 연결이 해제되었습니다."}, status=status.HTTP_200_OK)
+        except SocialAccount.DoesNotExist:
+            return Response({"error": f"{provider} 계정이 존재하지 않습니다."}, status=status.HTTP_404_NOT_FOUND)
 
-class YourSocialLoginViewBase:
-    def generate_unique_login_id(self):
-        while True:
-            login_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
-            if not SocialAccount.objects.filter(login_id=login_id).exists():
-                return login_id
+# 소셜 로그아웃
+class SocialLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request):
+        provider = request.data.get("provider")
+        access_token = request.data.get("access_token")
 
+        if provider == "kakao":
+            headers = {"Authorization": f"Bearer {access_token}"}
+            response = requests.post("https://kapi.kakao.com/v1/user/logout", headers=headers)
+            if response.status_code == 200:
+                return Response({"message": "카카오 로그아웃 성공"}, status=status.HTTP_200_OK)
+            return Response({"error": "카카오 로그아웃 실패"}, status=response.status_code)
 
-class GoogleLoginView(APIView):
+        elif provider == "google":
+            return Response({"message": "구글 로그아웃은 클라이언트에서 처리해야 합니다."}, status=status.HTTP_200_OK)
+
+        return Response({"error": "지원하지 않는 provider입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+# 구글 소셜 로그인
+class GoogleLoginView(YourSocialLoginViewBase, APIView):
     permission_classes = [AllowAny]
-
-    def generate_unique_login_id(self):
-        while True:
-            login_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
-            if not SocialAccount.objects.filter(login_id=login_id).exists():
-                return login_id
 
     def post(self, request):
         code = request.data.get("code")
-        print(f"👉 받은 인가 코드: {code}")
         if not code:
             return Response({"error": "인가 코드가 없습니다."}, status=400)
 
@@ -176,17 +219,25 @@ class GoogleLoginView(APIView):
             return Response({"error": "Invalid ID Token"}, status=400)
 
         email = decoded_id_token.get("email")
-        name = decoded_id_token.get("name")
+        name = decoded_id_token.get("name") or "GoogleUser"
         provider_id = decoded_id_token.get("sub")
 
-        user, created = User.objects.get_or_create(email=email, defaults={"name": name})
+        user, _ = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "name": name,
+                "nickname": "go" + self.generate_unique_login_id(),
+                "is_active": True,
+            }
+        )
 
-        # ✅ 이메일 인증 여부 확인
         if not user.is_active:
             return Response({"message": "이메일 인증이 필요합니다."}, status=403)
 
+        # 토큰에 사용자 정보를 넣기 위해 해당 사용자를 인자로 사용
         refresh = RefreshToken.for_user(user)
 
+        # 소셜 계정 생성 or 연결 (있으면 불러오고 없으면 생성)
         random_login_id = self.generate_unique_login_id()
         social_account, created = SocialAccount.objects.get_or_create(
             member_id=user,
@@ -205,15 +256,9 @@ class GoogleLoginView(APIView):
             "refresh": str(refresh),
         })
 
-
-class KakaoLoginView(APIView):
+# 카카오 소셜 로그인
+class KakaoLoginView(YourSocialLoginViewBase, APIView):
     permission_classes = [AllowAny]
-
-    def generate_unique_login_id(self):
-        while True:
-            login_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
-            if not SocialAccount.objects.filter(login_id=login_id).exists():
-                return login_id
 
     def post(self, request):
         code = request.data.get("code")
@@ -245,14 +290,22 @@ class KakaoLoginView(APIView):
         if not email:
             return Response({"error": "이메일 정보를 가져올 수 없습니다."}, status=400)
 
-        user, created = User.objects.get_or_create(email=email)
+        user, _ = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "name": "KakaoUser",
+                "nickname": "ka" + self.generate_unique_login_id(),
+                "is_active": True,
+            }
+        )
 
-        # ✅ 이메일 인증 여부 확인
         if not user.is_active:
             return Response({"message": "이메일 인증이 필요합니다."}, status=403)
 
+        # 토큰에 사용자 정보를 넣기 위해 해당 사용자를 인자로 사용
         refresh = RefreshToken.for_user(user)
 
+        #  소셜 계정 생성 or 연결 (있으면 불러오고 없으면 생성)
         random_login_id = self.generate_unique_login_id()
         social_account, created = SocialAccount.objects.get_or_create(
             member_id=user,
@@ -272,84 +325,13 @@ class KakaoLoginView(APIView):
         })
 
 
-class NaverLoginView(APIView):
-    permission_classes = [AllowAny]
-
-    def generate_unique_login_id(self):
-        while True:
-            login_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
-            if not SocialAccount.objects.filter(login_id=login_id).exists():
-                return login_id
-
-    def post(self, request):
-        code = request.data.get("code")
-        state = request.data.get("state")  # 네이버는 state도 함께 전달됨
-
-        if not code or not state:
-            return Response({"error": "인가 코드 또는 state가 없습니다."}, status=400)
-
-        token_data = {
-            "grant_type": "authorization_code",
-            "client_id": settings.NAVER_CLIENT_ID,
-            "client_secret": settings.NAVER_CLIENT_SECRET,
-            "code": code,
-            "state": state,
-        }
-
-        token_res = requests.post("https://nid.naver.com/oauth2.0/token", data=token_data)
-        token_json = token_res.json()
-        access_token = token_json.get("access_token")
-
-        if not access_token:
-            return Response({"error": "Access Token을 가져오지 못했습니다."}, status=400)
-
-        headers = {"Authorization": f"Bearer {access_token}"}
-        user_info_res = requests.get("https://openapi.naver.com/v1/nid/me", headers=headers)
-        user_info_json = user_info_res.json()
-
-        if user_info_json.get("resultcode") != "00":
-            return Response({"error": "사용자 정보를 가져오지 못했습니다."}, status=400)
-
-        naver_account = user_info_json.get("response", {})
-        email = naver_account.get("email")
-        name = naver_account.get("name")
-        provider_id = naver_account.get("id")
-
-        if not email:
-            return Response({"error": "이메일 정보를 가져올 수 없습니다."}, status=400)
-
-        user, created = User.objects.get_or_create(email=email, defaults={"name": name})
-
-        # ✅ 이메일 인증 여부 확인
-        if not user.is_active:
-            return Response({"message": "이메일 인증이 필요합니다."}, status=403)
-
-        refresh = RefreshToken.for_user(user)
-
-        random_login_id = self.generate_unique_login_id()
-        social_account, created = SocialAccount.objects.get_or_create(
-            member_id=user,
-            provider="naver",
-            provider_id=provider_id,
-            defaults={
-                "login_id": random_login_id,
-                "access_token": access_token,
-                "status": "active",
-            },
-        )
-
-        return Response({
-            "email": user.email,
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-        })
-
+# 이메일 인증 코드 전송 (Java 요청 처리)
 class SendAuthEmailFromJavaView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         email = request.data.get("email")
-        code = request.data.get("code")  # 여기서 먼저 정의되어야 함!
+        code = request.data.get("code")
 
         if not email or not code:
             return Response({"error": "이메일과 인증 코드가 모두 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
